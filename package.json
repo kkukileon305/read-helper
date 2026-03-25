@@ -22,6 +22,7 @@
 	},
 	"dependencies": {
 		"@google/generative-ai": "^0.24.1",
-		"@supabase/supabase-js": "^2.100.0"
+		"@supabase/supabase-js": "^2.100.0",
+		"lucide-svelte": "^1.0.1"
 	}
 }

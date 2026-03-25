@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { supabase } from "$lib/supabaseClient";
   import type { Session } from "@supabase/supabase-js";
+  import { Menu } from "lucide-svelte";
 
   type TextSegment = { type: "text"; content: string };
   type WordSegment = {
@@ -240,6 +241,8 @@
     } else {
       localStorage.setItem("readHelperSaved", JSON.stringify(savedItems));
     }
+
+    isSidebarOpen = true;
   };
 
   const loadSavedItem = (item: SavedItem) => {
@@ -385,7 +388,7 @@
         class="history-toggle-btn glass"
         onclick={() => (isSidebarOpen = !isSidebarOpen)}
       >
-        {isSidebarOpen ? "보관함 닫기 ✕" : "보관함 열기 ☰"}
+        <Menu />
       </button>
       <header>
         <div class="auth-section">
@@ -430,7 +433,7 @@
             class="glass input-area"
             bind:value={inputText}
             oninput={handleInput}
-            placeholder="여기에 번체 중국어를 입력하세요..."
+            placeholder="여기에 중국어를 입력하세요..."
           ></textarea>
 
           <div
@@ -747,6 +750,9 @@
     font-weight: 600;
     z-index: 50;
     transition: all 0.2s ease;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   .history-toggle-btn:hover {
