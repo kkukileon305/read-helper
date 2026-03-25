@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { supabase } from "$lib/supabaseClient";
   import type { Session } from "@supabase/supabase-js";
-  import { Menu } from "lucide-svelte";
+  import { Menu, Trash2 } from "lucide-svelte";
 
   type TextSegment = { type: "text"; content: string };
   type WordSegment = {
@@ -26,7 +26,6 @@
   let errorMsg = $state("");
 
   const MAX_CHARS = 1000;
-  let timer: ReturnType<typeof setTimeout>;
 
   let savedItems = $state<SavedItem[]>([]);
   let searchQuery = $state("");
@@ -60,10 +59,16 @@
       isResizing = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      localStorage.setItem("readHelperSidebarWidth", sidebarWidth.toString());
     }
   };
 
   onMount(() => {
+    const storedWidth = localStorage.getItem("readHelperSidebarWidth");
+    if (storedWidth) {
+      sidebarWidth = parseFloat(storedWidth);
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       session = data.session;
       if (session) {
@@ -104,21 +109,31 @@
       try {
         const localItems: SavedItem[] = JSON.parse(stored);
         if (localItems.length > 0) {
-          const insertData = localItems.map((item) => ({
-            id: item.id,
-            user_id: userId,
-            original_text: item.originalText,
-            analyzed_segments: item.analyzedSegments,
-            timestamp: item.timestamp,
-          }));
-          const { error } = await supabase
+          const { data: existingData } = await supabase
             .from("saved_sentences")
-            .insert(insertData);
-          if (!error) {
-            localStorage.removeItem("readHelperSaved");
-          } else {
-            console.error("Failed to migrate data", error);
+            .select("original_text")
+            .eq("user_id", userId);
+            
+          const existingTexts = new Set((existingData || []).map((d) => d.original_text));
+          const itemsToInsert = localItems.filter((item) => !existingTexts.has(item.originalText));
+
+          if (itemsToInsert.length > 0) {
+            const insertData = itemsToInsert.map((item) => ({
+              id: item.id,
+              user_id: userId,
+              original_text: item.originalText,
+              analyzed_segments: item.analyzedSegments,
+              timestamp: item.timestamp,
+            }));
+            const { error } = await supabase
+              .from("saved_sentences")
+              .insert(insertData);
+            if (error) {
+              console.error("Failed to migrate data", error);
+              return;
+            }
           }
+          localStorage.removeItem("readHelperSaved");
         }
       } catch (e) {}
     }
@@ -157,9 +172,7 @@
     ),
   );
 
-  const handleInput = () => {
-    clearTimeout(timer);
-
+  const handleAnalyze = async () => {
     if (inputText.length > MAX_CHARS) {
       errorMsg = `입력 가능한 최대 글자 수(${MAX_CHARS}자)를 초과했습니다. 문장을 나누어서 입력해 주세요. (무료 API 제한 방지)`;
       isLoading = false;
@@ -172,8 +185,6 @@
       return;
     }
 
-    // Check if exactly same text exists in savedItems.
-    // If so, load from local storage instantly instead of hitting API
     const existing = savedItems.find(
       (item) => item.originalText === inputText.trim(),
     );
@@ -187,27 +198,25 @@
     isLoading = true;
     errorMsg = "";
 
-    timer = setTimeout(async () => {
-      try {
-        const response = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: inputText }),
-        });
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: inputText }),
+      });
 
-        if (!response.ok) {
-          throw new Error("Failed to analyze text");
-        }
-
-        const data: AnalyzeResponse = await response.json();
-        analyzedSegments = data.analyzed_text || [];
-      } catch (err) {
-        errorMsg =
-          err instanceof Error ? err.message : "Unknown error occurred";
-      } finally {
-        isLoading = false;
+      if (!response.ok) {
+        throw new Error("Failed to analyze text");
       }
-    }, 800);
+
+      const data: AnalyzeResponse = await response.json();
+      analyzedSegments = data.analyzed_text || [];
+    } catch (err) {
+      errorMsg =
+        err instanceof Error ? err.message : "Unknown error occurred";
+    } finally {
+      isLoading = false;
+    }
   };
 
   const saveCurrentAnalysis = async () => {
@@ -354,7 +363,7 @@
             {#each filteredSavedItems as item (item.id)}
               <li class="saved-item">
                 <button
-                  class="load-btn glass"
+                  class="load-btn"
                   onclick={() => loadSavedItem(item)}
                   aria-label="이 문장 불러오기"
                 >
@@ -370,10 +379,12 @@
                   >
                 </button>
                 <button
-                  class="delete-btn glass"
+                  class="delete-btn"
                   onclick={(e) => deleteSavedItem(item.id, e)}
-                  aria-label="삭제">삭제</button
+                  aria-label="삭제"
                 >
+                  <Trash2 size={18} strokeWidth={1.5} />
+                </button>
               </li>
             {/each}
           </ul>
@@ -432,7 +443,6 @@
           <textarea
             class="glass input-area"
             bind:value={inputText}
-            oninput={handleInput}
             placeholder="여기에 중국어를 입력하세요..."
           ></textarea>
 
@@ -442,6 +452,11 @@
           >
             {inputText.length} / {MAX_CHARS}
           </div>
+        </div>
+        <div class="analyze-btn-container">
+          <button class="analyze-btn glass" onclick={handleAnalyze} disabled={isLoading || !inputText.trim()}>
+            {isLoading ? '분석 중...' : '문장 분석하기'}
+          </button>
         </div>
       </section>
 
@@ -550,11 +565,7 @@
     -webkit-text-fill-color: transparent;
   }
 
-  .subtitle {
-    font-size: 1.25rem;
-    font-weight: 500;
-    opacity: 0.7;
-  }
+
 
   header p {
     color: var(--text-muted);
@@ -768,8 +779,8 @@
     margin-bottom: 1rem;
     color: var(--text-main);
     outline: none;
-    border-color: var(--border-color);
-    background: rgba(0, 0, 0, 0.03);
+    border: none;
+    background: rgba(0, 0, 0, 0.05); /* flat look without border */
   }
 
   .search-input:focus {
@@ -836,13 +847,14 @@
     padding: 0.85rem 1rem;
     color: var(--text-main);
     cursor: pointer;
+    background: transparent;
     transition: all 0.2s ease;
-    border: 1px solid var(--border-color);
+    border: none;
+    border-radius: 8px;
   }
 
   .load-btn:hover {
-    background: var(--highlight-bg);
-    border-color: var(--accent);
+    background: rgba(0, 0, 0, 0.03);
   }
 
   .saved-text {
@@ -864,22 +876,52 @@
 
   .delete-btn {
     color: #ef4444;
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    border: none;
+    background: transparent;
     padding: 0 1rem;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
-    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .delete-btn:hover {
-    background: #ef4444;
-    color: white;
+    background: rgba(239, 68, 68, 0.1);
   }
 
   /* Input Section */
   .textarea-wrapper {
     position: relative;
     width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .analyze-btn-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 2rem;
+  }
+
+  .analyze-btn {
+    padding: 0.8rem 2rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: white;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .analyze-btn:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  .analyze-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .input-area {
