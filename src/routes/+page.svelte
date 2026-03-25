@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { supabase } from "$lib/supabaseClient";
   import type { Session } from "@supabase/supabase-js";
-  import { Menu, Trash2 } from "lucide-svelte";
+  import { Menu, Trash2, Download } from "lucide-svelte";
 
   type TextSegment = { type: "text"; content: string };
   type WordSegment = {
@@ -34,6 +34,10 @@
   let isResizing = $state(false);
   let session = $state<Session | null>(null);
 
+  // PWA variables
+  let deferredPrompt = $state<any>(null);
+  let isStandalone = $state(false);
+
   const startResize = (e: MouseEvent) => {
     isResizing = true;
     document.body.style.cursor = "col-resize";
@@ -63,11 +67,35 @@
     }
   };
 
+  const installPwa = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        deferredPrompt = null;
+      }
+    }
+  };
+
   onMount(() => {
     const storedWidth = localStorage.getItem("readHelperSidebarWidth");
     if (storedWidth) {
       sidebarWidth = parseFloat(storedWidth);
     }
+    
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+      isStandalone = true;
+    }
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      isStandalone = true;
+    });
 
     supabase.auth.getSession().then(({ data }) => {
       session = data.session;
@@ -406,6 +434,11 @@
       </button>
       <header>
         <div class="auth-section">
+          {#if !isStandalone && deferredPrompt}
+            <button class="auth-btn install-pwa-btn" onclick={installPwa}>
+              <Download size={16} /> 앱 설치
+            </button>
+          {/if}
           {#if session}
             <span class="user-email">{session.user.email}</span>
             <button class="auth-btn glass" onclick={logout}>로그아웃</button>
@@ -616,6 +649,18 @@
   .auth-btn:hover {
     background: var(--highlight-bg);
     border-color: var(--accent);
+  }
+
+  .install-pwa-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+  }
+  
+  .install-pwa-btn:hover {
+    background: var(--accent-hover) !important;
+    border: none !important;
+    color: white;
   }
 
   .google-btn {
