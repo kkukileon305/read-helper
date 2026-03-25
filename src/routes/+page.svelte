@@ -113,9 +113,13 @@
             .from("saved_sentences")
             .select("original_text")
             .eq("user_id", userId);
-            
-          const existingTexts = new Set((existingData || []).map((d) => d.original_text));
-          const itemsToInsert = localItems.filter((item) => !existingTexts.has(item.originalText));
+
+          const existingTexts = new Set(
+            (existingData || []).map((d) => d.original_text),
+          );
+          const itemsToInsert = localItems.filter(
+            (item) => !existingTexts.has(item.originalText),
+          );
 
           if (itemsToInsert.length > 0) {
             const insertData = itemsToInsert.map((item) => ({
@@ -212,8 +216,7 @@
       const data: AnalyzeResponse = await response.json();
       analyzedSegments = data.analyzed_text || [];
     } catch (err) {
-      errorMsg =
-        err instanceof Error ? err.message : "Unknown error occurred";
+      errorMsg = err instanceof Error ? err.message : "Unknown error occurred";
     } finally {
       isLoading = false;
     }
@@ -454,8 +457,12 @@
           </div>
         </div>
         <div class="analyze-btn-container">
-          <button class="analyze-btn glass" onclick={handleAnalyze} disabled={isLoading || !inputText.trim()}>
-            {isLoading ? '분석 중...' : '문장 분석하기'}
+          <button
+            class="analyze-btn glass"
+            onclick={handleAnalyze}
+            disabled={isLoading || !inputText.trim()}
+          >
+            {isLoading ? "분석 중..." : "문장 분석하기"}
           </button>
         </div>
       </section>
@@ -552,7 +559,7 @@
   }
 
   h1 {
-    font-size: 2.5rem;
+    font-size: 2.15rem;
     font-weight: 800;
     margin-bottom: 0.5rem;
     background: linear-gradient(
@@ -564,8 +571,6 @@
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
-
-
 
   header p {
     color: var(--text-muted);
@@ -585,11 +590,20 @@
     color: var(--text-muted);
   }
 
+  @media (max-width: 768px) {
+    .user-email {
+      display: none;
+    }
+  }
+
   .auth-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    padding: 0 1rem;
+    height: 42px;
+    box-sizing: border-box;
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--text-main);
@@ -605,7 +619,13 @@
   }
 
   .google-btn {
-    background: rgba(0, 0, 0, 0.05);
+    background: white;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  .google-btn:hover {
+    background: #f8fafc;
   }
 
   /* Layout */
@@ -750,15 +770,17 @@
 
   .history-toggle-btn {
     position: fixed;
-    top: 1.5rem;
+    top: 2rem;
     left: 1.5rem;
-    padding: 0.6rem 1.2rem;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    box-sizing: border-box;
     background: var(--panel-bg);
     color: var(--text-main);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     cursor: pointer;
-    font-weight: 600;
     z-index: 50;
     transition: all 0.2s ease;
     display: flex;
