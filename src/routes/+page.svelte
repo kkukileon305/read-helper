@@ -71,7 +71,7 @@
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
+      if (outcome === "accepted") {
         deferredPrompt = null;
       }
     }
@@ -82,17 +82,20 @@
     if (storedWidth) {
       sidebarWidth = parseFloat(storedWidth);
     }
-    
-    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+
+    if (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone
+    ) {
       isStandalone = true;
     }
-    
-    window.addEventListener('beforeinstallprompt', (e) => {
+
+    window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
       deferredPrompt = e;
     });
 
-    window.addEventListener('appinstalled', () => {
+    window.addEventListener("appinstalled", () => {
       deferredPrompt = null;
       isStandalone = true;
     });
@@ -425,20 +428,15 @@
   </aside>
 
   <div class="main-content">
+    <button
+      class="history-toggle-btn glass"
+      onclick={() => (isSidebarOpen = !isSidebarOpen)}
+    >
+      <Menu />
+    </button>
     <main class="app-container">
-      <button
-        class="history-toggle-btn glass"
-        onclick={() => (isSidebarOpen = !isSidebarOpen)}
-      >
-        <Menu />
-      </button>
       <header>
         <div class="auth-section">
-          {#if !isStandalone && deferredPrompt}
-            <button class="auth-btn install-pwa-btn" onclick={installPwa}>
-              <Download size={16} /> 앱 설치
-            </button>
-          {/if}
           {#if session}
             <span class="user-email">{session.user.email}</span>
             <button class="auth-btn glass" onclick={logout}>로그아웃</button>
@@ -575,6 +573,14 @@
           {/if}
         </section>
       {/if}
+
+      {#if !isStandalone && deferredPrompt}
+        <div class="install-pwa-footer">
+          <button class="install-pwa-btn glass" onclick={installPwa}>
+            <Download size={20} /> 중국어 읽기 도우미 앱 설치하기
+          </button>
+        </div>
+      {/if}
     </main>
   </div>
 </div>
@@ -656,7 +662,7 @@
     color: white;
     border: none;
   }
-  
+
   .install-pwa-btn:hover {
     background: var(--accent-hover) !important;
     border: none !important;
@@ -671,6 +677,33 @@
 
   .google-btn:hover {
     background: #f8fafc;
+  }
+
+  .install-pwa-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 3rem;
+  }
+
+  .install-pwa-footer .install-pwa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+  }
+
+  .install-pwa-footer .install-pwa-btn:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
   }
 
   /* Layout */
@@ -788,15 +821,18 @@
     margin: 0;
     font-size: 1.5rem;
     color: var(--text-main);
+  }
+
+  .sidebar-header button {
     display: none;
   }
 
   @media (max-width: 768px) {
-    .sidebar-header h2 {
-      display: block;
-    }
     .sidebar-header {
       margin-bottom: 0.5rem;
+    }
+    .sidebar-header button {
+      display: block;
     }
   }
 
@@ -814,7 +850,7 @@
   }
 
   .history-toggle-btn {
-    position: fixed;
+    position: absolute;
     top: 2rem;
     left: 1.5rem;
     width: 42px;
