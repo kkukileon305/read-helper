@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { supabase } from "$lib/supabaseClient";
   import type { Session } from "@supabase/supabase-js";
-  import { Menu, Trash2, Download } from "lucide-svelte";
+  import { History, Trash2, Download } from "lucide-svelte";
 
   type TextSegment = { type: "text"; content: string };
   type WordSegment = {
@@ -246,6 +246,9 @@
 
       const data: AnalyzeResponse = await response.json();
       analyzedSegments = data.analyzed_text || [];
+      if (analyzedSegments.length > 0) {
+        await saveCurrentAnalysis();
+      }
     } catch (err) {
       errorMsg = err instanceof Error ? err.message : "Unknown error occurred";
     } finally {
@@ -257,7 +260,6 @@
     if (!analyzedSegments.length || !inputText.trim()) return;
 
     if (savedItems.some((i) => i.originalText === inputText.trim())) {
-      alert("이미 보관함에 저장된 문장입니다.");
       return;
     }
 
@@ -284,8 +286,6 @@
     } else {
       localStorage.setItem("readHelperSaved", JSON.stringify(savedItems));
     }
-
-    isSidebarOpen = true;
   };
 
   const loadSavedItem = (item: SavedItem) => {
@@ -374,7 +374,7 @@
       style={isSidebarOpen ? `width: ${sidebarWidth}vw` : ""}
     >
       <div class="sidebar-header">
-        <h2>보관함</h2>
+        <h2>최근기록</h2>
         <button
           class="close-btn"
           onclick={() => (isSidebarOpen = false)}
@@ -431,8 +431,9 @@
     <button
       class="history-toggle-btn glass"
       onclick={() => (isSidebarOpen = !isSidebarOpen)}
+      aria-label="최근기록"
     >
-      <Menu />
+      <History size={20} strokeWidth={2} />
     </button>
     <main class="app-container">
       <header>
@@ -472,31 +473,33 @@
         </p>
       </header>
 
-      <section class="input-section">
-        <div class="textarea-wrapper">
-          <textarea
-            class="glass input-area"
-            bind:value={inputText}
-            placeholder="여기에 중국어를 입력하세요..."
-          ></textarea>
+      {#if !isLoading && analyzedSegments.length === 0}
+        <section class="input-section">
+          <div class="textarea-wrapper">
+            <textarea
+              class="glass input-area"
+              bind:value={inputText}
+              placeholder="여기에 중국어를 입력하세요..."
+            ></textarea>
 
-          <div
-            class="char-count"
-            class:limit-reached={inputText.length > MAX_CHARS}
-          >
-            {inputText.length} / {MAX_CHARS}
+            <div
+              class="char-count"
+              class:limit-reached={inputText.length > MAX_CHARS}
+            >
+              {inputText.length} / {MAX_CHARS}
+            </div>
           </div>
-        </div>
-        <div class="analyze-btn-container">
-          <button
-            class="analyze-btn glass"
-            onclick={handleAnalyze}
-            disabled={isLoading || !inputText.trim()}
-          >
-            {isLoading ? "분석 중..." : "문장 분석하기"}
-          </button>
-        </div>
-      </section>
+          <div class="analyze-btn-container">
+            <button
+              class="analyze-btn glass"
+              onclick={handleAnalyze}
+              disabled={!inputText.trim()}
+            >
+              문장 분석하기
+            </button>
+          </div>
+        </section>
+      {/if}
 
       {#if isLoading}
         <div class="loading">
@@ -541,9 +544,9 @@
           </div>
 
           <div class="result-actions">
-            <button class="save-btn glass" onclick={saveCurrentAnalysis}
-              >현재 분석 화면 저장하기</button
-            >
+            <button class="new-btn glass" onclick={() => { analyzedSegments = []; errorMsg = ''; }}>
+              새 문장 입력 / 수정하기
+            </button>
           </div>
 
           {#if vocabularyList.length > 0}
@@ -1047,10 +1050,11 @@
   .result-actions {
     display: flex;
     justify-content: flex-end;
+    gap: 1rem;
     margin-bottom: 2rem;
   }
 
-  .save-btn {
+  .new-btn {
     color: var(--text-main);
     border: 1px solid var(--border-color);
     padding: 0.75rem 1.5rem;
@@ -1060,10 +1064,9 @@
     font-weight: 600;
   }
 
-  .save-btn:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
+  .new-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: var(--text-muted);
   }
 
   .char-count {
