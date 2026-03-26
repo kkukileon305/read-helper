@@ -192,8 +192,15 @@
   };
 
   const loginWithGoogle = async () => {
+    const redirectUrl = import.meta.env.DEV
+      ? "http://localhost:5173"
+      : "https://read-helper-dun.vercel.app";
+
     await supabase.auth.signInWithOAuth({
       provider: "google",
+      options: {
+        redirectTo: redirectUrl,
+      },
     });
   };
 
@@ -342,9 +349,18 @@
     return parts;
   };
 
-  let vocabularyList = $derived(
-    analyzedSegments.filter((s): s is WordSegment => s.type === "word"),
-  );
+  let vocabularyList = $derived.by(() => {
+    const words = analyzedSegments.filter(
+      (s): s is WordSegment => s.type === "word",
+    );
+    const seen = new Set<string>();
+    return words.filter((w) => {
+      const key = `${w.word}-${w.zhuyin}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  });
 
   let hoveredWord = $state<string | null>(null);
 </script>
@@ -544,7 +560,13 @@
           </div>
 
           <div class="result-actions">
-            <button class="new-btn glass" onclick={() => { analyzedSegments = []; errorMsg = ''; }}>
+            <button
+              class="new-btn glass"
+              onclick={() => {
+                analyzedSegments = [];
+                errorMsg = "";
+              }}
+            >
               새 문장 입력 / 수정하기
             </button>
           </div>
